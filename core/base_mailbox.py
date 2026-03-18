@@ -40,6 +40,11 @@ def create_mailbox(provider: str, extra: dict = None, proxy: str = None) -> 'Bas
             bearer=extra.get("duckmail_bearer", "kevin273945"),
             proxy=proxy,
         )
+    elif provider == "moemail":
+        return MoeMailMailbox(
+            api_url=extra.get("moemail_api_url", "https://sall.cc"),
+            proxy=proxy,
+        )
     elif provider == "cfworker":
         return CFWorkerMailbox(
             api_url=extra.get("cfworker_api_url", ""),
@@ -382,6 +387,93 @@ class CFWorkerMailbox(BaseMailbox):
                     m = re.search(r'(?<!#)(?<!\d)(\d{6})(?!\d)', re.sub(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', '', text))
                     if m:
                         return m.group(1)
+            except Exception:
+                pass
+            time.sleep(3)
+        return ""
+
+
+class MoeMailMailbox(BaseMailbox):
+    """MoeMail (sall.cc) 邮箱服务 - 自动注册账号并生成临时邮箱"""
+
+    def __init__(self, api_url: str = "https://sall.cc", proxy: str = None):
+        self.api = api_url.rstrip("/")
+        self.proxy = {"http": proxy, "https": proxy} if proxy else None
+        self._session_token = None
+        self._email = None
+
+    def _register_and_login(self) -> str:
+        import requests, random, string
+        s = requests.Session()
+        s.proxies = self.proxy
+        ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+        s.headers.update({"user-agent": ua, "origin": self.api, "referer": f"{self.api}/zh-CN/login"})
+        # 注册
+        username = "".join(random.choices(string.ascii_lowercase + string.digits, k=12))
+        password = "Test" + "".join(random.choices(string.digits, k=8)) + "!"
+        s.post(f"{self.api}/api/auth/register",
+            json={"username": username, "password": password, "turnstileToken": ""},
+            timeout=15)
+        # 获取 CSRF
+        csrf_r = s.get(f"{self.api}/api/auth/csrf", timeout=10)
+        csrf = csrf_r.json().get("csrfToken", "")
+        # 登录
+        s.post(f"{self.api}/api/auth/callback/credentials",
+            headers={"content-type": "application/x-www-form-urlencoded"},
+            data=f"username={username}&password={password}&csrfToken={csrf}&redirect=false&callbackUrl={self.api}",
+            allow_redirects=True, timeout=15)
+        # 提取 session token
+        for cookie in s.cookies:
+            if "session-token" in cookie.name:
+                self._session_token = cookie.value
+                self._session = s
+                return cookie.value
+        return ""
+
+    def get_email(self) -> MailboxAccount:
+        if not self._session_token:
+            self._register_and_login()
+        r = self._session.post(f"{self.api}/api/emails/generate",
+            json={}, timeout=15)
+        data = r.json()
+        self._email = data.get("email", data.get("address", ""))
+        email_id = data.get("id", "")
+        return MailboxAccount(email=self._email, account_id=str(email_id))
+
+    def get_current_ids(self, account: MailboxAccount) -> set:
+        try:
+            r = self._session.get(f"{self.api}/api/emails/{account.account_id}/messages",
+                timeout=10)
+            return {str(m.get("id", "")) for m in r.json().get("messages", []) or r.json() if isinstance(r.json(), list)}
+        except Exception:
+            return set()
+
+    def wait_for_code(self, account: MailboxAccount, keyword: str = "",
+                      timeout: int = 120, before_ids: set = None) -> str:
+        import re, time
+        seen = set(before_ids or [])
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                r = self._session.get(f"{self.api}/api/emails/{account.account_id}/messages",
+                    timeout=10)
+                data = r.json()
+                msgs = data if isinstance(data, list) else data.get("messages", [])
+                for msg in msgs:
+                    mid = str(msg.get("id", ""))
+                    if not mid or mid in seen: continue
+                    seen.add(mid)
+                    # 获取邮件详情
+                    try:
+                        r2 = self._session.get(f"{self.api}/api/emails/{account.account_id}/messages/{mid}",
+                            timeout=10)
+                        detail = r2.json()
+                        body = str(detail.get("text") or detail.get("body") or "") + " " + str(detail.get("subject") or "")
+                    except Exception:
+                        body = str(msg.get("subject", ""))
+                    body = re.sub(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', '', body)
+                    m = re.search(r'(?<!#)(?<!\d)(\d{6})(?!\d)', body)
+                    if m: return m.group(1)
             except Exception:
                 pass
             time.sleep(3)

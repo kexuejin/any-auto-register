@@ -1454,9 +1454,6 @@ class KiroRegister:
 # ═══════════════════════════════════════════
 #  TechFlow 邮箱 (已弃用, 注释保留)
 # ═══════════════════════════════════════════
-# TECHFLOW_API = "https://apimail.techflow.eu.cc"
-# TECHFLOW_ADMIN_AUTH = "27394500abc"
-# TECHFLOW_DOMAIN = "techflow.eu.cc"
 #
 # def create_techflow_email():
 #     chars = string.ascii_lowercase + string.digits
