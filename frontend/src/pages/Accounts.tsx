@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { getConfig, getConfigOptions, getPlatforms } from '@/lib/app-data'
 import type { ConfigOptionsResponse } from '@/lib/config-options'
@@ -9,6 +9,7 @@ import { TaskLogPanel } from '@/components/tasks/TaskLogPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Portal } from '@/components/ui/portal'
 import { getTaskStatusText, TASK_STATUS_VARIANTS } from '@/lib/tasks'
 import { RefreshCw, Copy, ExternalLink, Download, Upload, Plus, X, Mail, WalletCards, ShieldCheck, Inbox, ScanSearch } from 'lucide-react'
 
@@ -269,9 +270,10 @@ function RegisterModal({
   }
 
   return (
-    <div className="dialog-backdrop" onClick={!taskId ? onClose : undefined}>
-      <div className="dialog-panel dialog-panel-md flex flex-col"
-           onClick={e => e.stopPropagation()} style={{maxHeight: '88vh'}}>
+    <Portal>
+      <div className="dialog-backdrop" onClick={!taskId ? onClose : undefined}>
+        <div className="dialog-panel dialog-panel-md flex flex-col"
+             onClick={e => e.stopPropagation()} style={{maxHeight: '88vh'}}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <h2 className="text-base font-semibold text-[var(--text-primary)]">注册 {platformMeta?.display_name || platform}</h2>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"><X className="h-4 w-4" /></button>
@@ -389,8 +391,9 @@ function RegisterModal({
             {done ? '关闭' : '取消'}
           </Button>
         </div>
+        </div>
       </div>
-    </div>
+    </Portal>
   )
 }
 
@@ -412,9 +415,10 @@ function AddModal({ platform, onClose, onDone }: { platform: string; onClose: ()
   }
 
   return (
-    <div className="dialog-backdrop" onClick={onClose}>
-      <div className="dialog-panel dialog-panel-sm"
-           onClick={e => e.stopPropagation()}>
+    <Portal>
+      <div className="dialog-backdrop" onClick={onClose}>
+        <div className="dialog-panel dialog-panel-sm"
+             onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <h2 className="text-base font-semibold text-[var(--text-primary)]">手动新增账号</h2>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"><X className="h-4 w-4" /></button>
@@ -441,8 +445,9 @@ function AddModal({ platform, onClose, onDone }: { platform: string; onClose: ()
           <Button onClick={save} disabled={saving} className="flex-1">{saving ? '保存中...' : '保存'}</Button>
           <Button variant="outline" onClick={onClose} className="flex-1">取消</Button>
         </div>
+        </div>
       </div>
-    </div>
+    </Portal>
   )
 }
 
@@ -587,11 +592,12 @@ function ActionResultModal({
   const content = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2)
 
   return (
-    <div className="dialog-backdrop" onClick={onClose}>
-      <div
-        className="dialog-panel dialog-panel-lg"
-        onClick={e => e.stopPropagation()}
-      >
+    <Portal>
+      <div className="dialog-backdrop" onClick={onClose}>
+        <div
+          className="dialog-panel dialog-panel-lg"
+          onClick={e => e.stopPropagation()}
+        >
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">{title}</h2>
@@ -613,8 +619,9 @@ function ActionResultModal({
             {content}
           </pre>
         </div>
+        </div>
       </div>
-    </div>
+    </Portal>
   )
 }
 
@@ -632,12 +639,13 @@ function ActionTaskModal({
   onDone: (status: string) => void
 }) {
   return (
-    <div className="dialog-backdrop" onClick={onClose}>
-      <div
-        className="dialog-panel dialog-panel-md flex flex-col"
-        onClick={e => e.stopPropagation()}
-        style={{ maxHeight: '88vh' }}
-      >
+    <Portal>
+      <div className="dialog-backdrop" onClick={onClose}>
+        <div
+          className="dialog-panel dialog-panel-md flex flex-col"
+          onClick={e => e.stopPropagation()}
+          style={{ maxHeight: '88vh' }}
+        >
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">{title}</h2>
@@ -657,8 +665,9 @@ function ActionTaskModal({
             关闭
           </Button>
         </div>
+        </div>
       </div>
-    </div>
+    </Portal>
   )
 }
 // ── 行操作菜单 ─────────────────────────────────────────────
@@ -841,119 +850,121 @@ function DetailModal({ acc, onClose, onSave }: { acc: any; onClose: () => void; 
   }
 
   return (
-    <div className="dialog-backdrop" onClick={onClose}>
-      <div className="dialog-panel dialog-panel-sm overflow-y-auto" style={{maxHeight:'90vh'}} onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
-          <div>
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">账号详情</h2>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">{acc.email}</p>
-          </div>
-          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"><X className="h-4 w-4" /></button>
-        </div>
-        <div className="px-6 py-4 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <ResultStat label="展示状态" value={getDisplayStatus(acc)} />
-            <ResultStat label="生命周期" value={getLifecycleStatus(acc)} />
-            <ResultStat label="有效性" value={getValidityStatus(acc)} />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ResultStat label="套餐状态" value={getPlanState(acc)} />
-            <ResultStat label="套餐名称" value={acc.plan_name || overview.plan_name || overview.plan} />
-          </div>
-          {(overview?.chips?.length > 0 || verificationMailbox?.email) && (
-            <div className="space-y-2">
-              {overview?.chips?.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {overview.chips.map((chip: string) => (
-                    <span key={chip} className="rounded-full border border-[var(--border)] bg-[var(--bg-hover)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]">
-                      {chip}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {verificationMailbox?.email && (
-                <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-hover)] px-3 py-2 text-xs text-[var(--text-secondary)]">
-                  验证码邮箱: {verificationMailbox.email} · {verificationMailbox.provider || '-'} · ID {verificationMailbox.account_id || '-'}
-                </div>
-              )}
+    <Portal>
+      <div className="dialog-backdrop" onClick={onClose}>
+        <div className="dialog-panel dialog-panel-sm overflow-y-auto" style={{maxHeight:'90vh'}} onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+            <div>
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">账号详情</h2>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">{acc.email}</p>
             </div>
-          )}
-          {providerAccounts.length > 0 && (
-            <div className="space-y-2">
-              <label className="text-xs text-[var(--text-muted)] block">Provider Accounts</label>
-              {providerAccounts.map((item: any, index: number) => (
-                <div key={`${item.provider_name || 'provider'}-${item.login_identifier || index}`} className="rounded-xl border border-[var(--border)] bg-[var(--bg-hover)] p-3">
-                  <div className="text-xs font-semibold text-[var(--text-primary)]">
-                    {item.provider_name || item.provider_type || 'provider'}
+            <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"><X className="h-4 w-4" /></button>
+          </div>
+          <div className="px-6 py-4 space-y-3">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <ResultStat label="展示状态" value={getDisplayStatus(acc)} />
+              <ResultStat label="生命周期" value={getLifecycleStatus(acc)} />
+              <ResultStat label="有效性" value={getValidityStatus(acc)} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <ResultStat label="套餐状态" value={getPlanState(acc)} />
+              <ResultStat label="套餐名称" value={acc.plan_name || overview.plan_name || overview.plan} />
+            </div>
+            {(overview?.chips?.length > 0 || verificationMailbox?.email) && (
+              <div className="space-y-2">
+                {overview?.chips?.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {overview.chips.map((chip: string) => (
+                      <span key={chip} className="rounded-full border border-[var(--border)] bg-[var(--bg-hover)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]">
+                        {chip}
+                      </span>
+                    ))}
                   </div>
-                  <div className="mt-1 text-xs text-[var(--text-secondary)] break-all">
-                    登录标识: {item.login_identifier || '-'}
+                )}
+                {verificationMailbox?.email && (
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-hover)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+                    验证码邮箱: {verificationMailbox.email} · {verificationMailbox.provider || '-'} · ID {verificationMailbox.account_id || '-'}
                   </div>
-                  {item.credentials && Object.keys(item.credentials).length > 0 && (
-                    <div className="mt-2 grid gap-2">
-                      {Object.entries(item.credentials).map(([key, value]: [string, any]) => (
-                        <div key={key}>
-                          <div className="text-[11px] text-[var(--text-muted)]">{key}</div>
-                          <div className="flex items-start gap-1">
-                            <div className="flex-1 rounded-md border border-[var(--border)] bg-black/20 px-2 py-1.5 text-xs font-mono text-[var(--text-secondary)] break-all">
-                              {String(value || '-')}
+                )}
+              </div>
+            )}
+            {providerAccounts.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-xs text-[var(--text-muted)] block">Provider Accounts</label>
+                {providerAccounts.map((item: any, index: number) => (
+                  <div key={`${item.provider_name || 'provider'}-${item.login_identifier || index}`} className="rounded-xl border border-[var(--border)] bg-[var(--bg-hover)] p-3">
+                    <div className="text-xs font-semibold text-[var(--text-primary)]">
+                      {item.provider_name || item.provider_type || 'provider'}
+                    </div>
+                    <div className="mt-1 text-xs text-[var(--text-secondary)] break-all">
+                      登录标识: {item.login_identifier || '-'}
+                    </div>
+                    {item.credentials && Object.keys(item.credentials).length > 0 && (
+                      <div className="mt-2 grid gap-2">
+                        {Object.entries(item.credentials).map(([key, value]: [string, any]) => (
+                          <div key={key}>
+                            <div className="text-[11px] text-[var(--text-muted)]">{key}</div>
+                            <div className="flex items-start gap-1">
+                              <div className="flex-1 rounded-md border border-[var(--border)] bg-black/20 px-2 py-1.5 text-xs font-mono text-[var(--text-secondary)] break-all">
+                                {String(value || '-')}
+                              </div>
+                              {value ? (
+                                <button onClick={() => copyText(String(value))} className="mt-1 shrink-0 text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
+                                  <Copy className="h-3 w-3" />
+                                </button>
+                              ) : null}
                             </div>
-                            {value ? (
-                              <button onClick={() => copyText(String(value))} className="mt-1 shrink-0 text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
-                                <Copy className="h-3 w-3" />
-                              </button>
-                            ) : null}
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-          {platformCredentials.length > 0 && (
-            <div className="space-y-2">
-              <label className="text-xs text-[var(--text-muted)] block">Platform Credentials</label>
-              {platformCredentials.map((item: any) => (
-                <div key={`${item.scope}-${item.key}`} className="rounded-xl border border-[var(--border)] bg-[var(--bg-hover)] p-3">
-                  <div className="text-[11px] text-[var(--text-muted)]">{item.key}</div>
-                  <div className="mt-1 flex items-start gap-1">
-                    <div className="flex-1 rounded-md border border-[var(--border)] bg-black/20 px-2 py-1.5 text-xs font-mono text-[var(--text-secondary)] break-all">
-                      {item.value}
-                    </div>
-                    <button onClick={() => copyText(String(item.value || ''))} className="mt-1 shrink-0 text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
-                      <Copy className="h-3 w-3" />
-                    </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            )}
+            {platformCredentials.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-xs text-[var(--text-muted)] block">Platform Credentials</label>
+                {platformCredentials.map((item: any) => (
+                  <div key={`${item.scope}-${item.key}`} className="rounded-xl border border-[var(--border)] bg-[var(--bg-hover)] p-3">
+                    <div className="text-[11px] text-[var(--text-muted)]">{item.key}</div>
+                    <div className="mt-1 flex items-start gap-1">
+                      <div className="flex-1 rounded-md border border-[var(--border)] bg-black/20 px-2 py-1.5 text-xs font-mono text-[var(--text-secondary)] break-all">
+                        {item.value}
+                      </div>
+                      <button onClick={() => copyText(String(item.value || ''))} className="mt-1 shrink-0 text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
+                        <Copy className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div>
+              <label className="text-xs text-[var(--text-muted)] block mb-1">生命周期状态</label>
+              <select value={form.lifecycle_status} onChange={e => setForm(f => ({ ...f, lifecycle_status: e.target.value }))}
+                className="control-surface appearance-none">
+                {['registered','trial','subscribed','expired','invalid'].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
-          )}
-          <div>
-            <label className="text-xs text-[var(--text-muted)] block mb-1">生命周期状态</label>
-            <select value={form.lifecycle_status} onChange={e => setForm(f => ({ ...f, lifecycle_status: e.target.value }))}
-              className="control-surface appearance-none">
-              {['registered','trial','subscribed','expired','invalid'].map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <div>
+              <label className="text-xs text-[var(--text-muted)] block mb-1">主凭证</label>
+              <textarea value={form.primary_token} onChange={e => setForm(f => ({ ...f, primary_token: e.target.value }))}
+                rows={2} className="control-surface control-surface-mono resize-none" />
+            </div>
+            <div>
+              <label className="text-xs text-[var(--text-muted)] block mb-1">试用链接</label>
+              <textarea value={form.cashier_url} onChange={e => setForm(f => ({ ...f, cashier_url: e.target.value }))}
+                rows={2} className="control-surface control-surface-mono resize-none" />
+            </div>
           </div>
-          <div>
-            <label className="text-xs text-[var(--text-muted)] block mb-1">主凭证</label>
-            <textarea value={form.primary_token} onChange={e => setForm(f => ({ ...f, primary_token: e.target.value }))}
-              rows={2} className="control-surface control-surface-mono resize-none" />
+          <div className="flex gap-3 px-6 py-4 border-t border-[var(--border)]">
+            <Button onClick={save} disabled={saving} className="flex-1">{saving ? '保存中...' : '保存'}</Button>
+            <Button variant="outline" onClick={onClose} className="flex-1">取消</Button>
           </div>
-          <div>
-            <label className="text-xs text-[var(--text-muted)] block mb-1">试用链接</label>
-            <textarea value={form.cashier_url} onChange={e => setForm(f => ({ ...f, cashier_url: e.target.value }))}
-              rows={2} className="control-surface control-surface-mono resize-none" />
-          </div>
-        </div>
-        <div className="flex gap-3 px-6 py-4 border-t border-[var(--border)]">
-          <Button onClick={save} disabled={saving} className="flex-1">{saving ? '保存中...' : '保存'}</Button>
-          <Button variant="outline" onClick={onClose} className="flex-1">取消</Button>
         </div>
       </div>
-    </div>
+    </Portal>
   )
 }
 
@@ -971,19 +982,21 @@ function ImportModal({ platform, onClose, onDone }: { platform: string; onClose:
     } catch (e: any) { setResult(`失败: ${e.message}`) } finally { setLoading(false) }
   }
   return (
-    <div className="dialog-backdrop" onClick={onClose}>
-      <div className="dialog-panel dialog-panel-sm p-6" onClick={e => e.stopPropagation()}>
-        <h2 className="text-base font-semibold text-[var(--text-primary)] mb-2">批量导入</h2>
-        <p className="text-xs text-[var(--text-muted)] mb-3">每行格式: <code className="bg-[var(--bg-hover)] px-1 rounded">email password [cashier_url]</code></p>
-        <textarea value={text} onChange={e => setText(e.target.value)} rows={8}
-          className="control-surface control-surface-mono resize-none mb-3" />
-        {result && <p className="text-sm text-emerald-400 mb-3">{result}</p>}
-        <div className="flex gap-2">
-          <Button onClick={submit} disabled={loading} className="flex-1">{loading ? '导入中...' : '导入'}</Button>
-          <Button variant="outline" onClick={onClose} className="flex-1">取消</Button>
+    <Portal>
+      <div className="dialog-backdrop" onClick={onClose}>
+        <div className="dialog-panel dialog-panel-sm p-6" onClick={e => e.stopPropagation()}>
+          <h2 className="text-base font-semibold text-[var(--text-primary)] mb-2">批量导入</h2>
+          <p className="text-xs text-[var(--text-muted)] mb-3">每行格式: <code className="bg-[var(--bg-hover)] px-1 rounded">email password [cashier_url]</code></p>
+          <textarea value={text} onChange={e => setText(e.target.value)} rows={8}
+            className="control-surface control-surface-mono resize-none mb-3" />
+          {result && <p className="text-sm text-emerald-400 mb-3">{result}</p>}
+          <div className="flex gap-2">
+            <Button onClick={submit} disabled={loading} className="flex-1">{loading ? '导入中...' : '导入'}</Button>
+            <Button variant="outline" onClick={onClose} className="flex-1">取消</Button>
+          </div>
         </div>
       </div>
-    </div>
+    </Portal>
   )
 }
 
@@ -1108,6 +1121,8 @@ export default function Accounts() {
   const [accounts, setAccounts] = useState<any[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
@@ -1132,22 +1147,23 @@ export default function Accounts() {
     return () => clearTimeout(timer)
   }, [search])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setSelectedIds(new Set())
+    setPage(1)
   }, [tab, filterStatus, debouncedSearch])
 
-  const load = useCallback(async (p = tab, s = debouncedSearch, fs = filterStatus) => {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ platform: p, page: '1', page_size: '100' })
-      if (s) params.set('email', s)
-      if (fs) params.set('status', fs)
+      const params = new URLSearchParams({ platform: tab, page: String(page), page_size: String(pageSize) })
+      if (debouncedSearch) params.set('email', debouncedSearch)
+      if (filterStatus) params.set('status', filterStatus)
       const data = await apiFetch(`/accounts?${params}`)
       setAccounts(data.items); setTotal(data.total)
     } finally { setLoading(false) }
-  }, [tab, debouncedSearch, filterStatus])
+  }, [tab, page, pageSize, debouncedSearch, filterStatus])
 
-  useEffect(() => { load(tab, debouncedSearch, filterStatus) }, [tab, debouncedSearch, filterStatus])
+  useEffect(() => { load() }, [load])
 
   useEffect(() => {
     setSelectedIds(prev => {
@@ -1155,6 +1171,15 @@ export default function Accounts() {
       return new Set([...prev].filter(id => visible.has(id)))
     })
   }, [accounts])
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const canPrev = page > 1
+  const canNext = page < totalPages
+
+  useEffect(() => {
+    // After deletions / filters, clamp page to the last available page.
+    if (page > totalPages) setPage(totalPages)
+  }, [page, totalPages])
 
   const exportCsv = () => {
     const header = 'email,password,display_status,lifecycle_status,plan_state,validity_status,cashier_url,created_at'
@@ -1433,6 +1458,47 @@ export default function Accounts() {
             ))}
           </tbody>
         </table>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] px-5 py-3">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
+            <Badge variant="secondary">第 {page} / {totalPages} 页</Badge>
+            <Badge variant="secondary">共 {total} 条</Badge>
+            {selectedCount > 0 ? <Badge variant="default">已选 {selectedCount}</Badge> : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[var(--text-muted)]">每页</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  const next = Number(e.target.value || 50)
+                  setPageSize(next)
+                  setPage(1)
+                }}
+                className="control-surface control-surface-compact appearance-none !w-[96px]"
+              >
+                {[20, 50, 100].map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={!canPrev || loading}
+            >
+              上一页
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={!canNext || loading}
+            >
+              下一页
+            </Button>
+          </div>
         </div>
       </Card>
     </div>
