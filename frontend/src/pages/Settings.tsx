@@ -464,7 +464,7 @@ function AddProviderModal({
 }: any) {
   return (
     <div className="dialog-backdrop" onClick={onClose}>
-      <div className="dialog-panel dialog-panel-sm" onClick={e => e.stopPropagation()}>
+      <div className="dialog-panel dialog-panel-sm flex flex-col" style={{ maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">{title}</h2>
@@ -472,7 +472,7 @@ function AddProviderModal({
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"><X className="h-4 w-4" /></button>
         </div>
-        <div className="px-6 py-4">
+        <div className="px-6 py-4 flex-1 overflow-y-auto">
           {providers.length === 0 ? (
             <div className="empty-state-panel">
               当前可新增的 provider 已全部加入列表。
@@ -531,7 +531,7 @@ function CreateProviderDefinitionModal({
 
   return (
     <div className="dialog-backdrop" onClick={onClose}>
-      <div className="dialog-panel dialog-panel-md overflow-y-auto" style={{ maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+      <div className="dialog-panel dialog-panel-md flex flex-col" style={{ maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">{title}</h2>
@@ -539,7 +539,7 @@ function CreateProviderDefinitionModal({
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"><X className="h-4 w-4" /></button>
         </div>
-        <div className="px-6 py-4 space-y-3">
+        <div className="px-6 py-4 space-y-3 flex-1 overflow-y-auto">
           <div className="grid grid-cols-3 gap-4 items-center py-3 border-b border-white/5">
             <label className="text-sm text-[var(--text-secondary)] font-medium">Provider 名称</label>
             <div className="col-span-2">
