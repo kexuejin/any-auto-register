@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getPlatforms } from '@/lib/app-data'
-import { apiFetch } from '@/lib/utils'
+import { apiFetch, formatDateTime } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -144,7 +144,7 @@ export default function TaskHistory() {
             {tasks.map(task => (
               <tr key={task.id} className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-hover)]/70">
                 <td className="px-4 py-2.5 text-xs text-[var(--text-muted)]">
-                  {task.created_at ? new Date(task.created_at).toLocaleString('zh-CN', { hour12: false }) : '-'}
+                  {formatDateTime(task.created_at)}
                 </td>
                 <td className="px-4 py-2.5 font-mono text-xs text-[var(--text-secondary)]">{task.id}</td>
                 <td className="px-4 py-2.5">

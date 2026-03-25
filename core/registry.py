@@ -22,8 +22,10 @@ def load_all():
     for finder, name, _ in pkgutil.iter_modules(platforms.__path__, platforms.__name__ + "."):
         try:
             importlib.import_module(f"{name}.plugin")
-        except ModuleNotFoundError:
-            pass
+        except (ModuleNotFoundError, ImportError) as exc:
+            # Optional dependencies may be missing in some environments (desktop bundle, CI, etc).
+            # We skip those plugins to keep the rest of the system usable (e.g. ChatGPT actions).
+            print(f"[WARN] 跳过加载插件 {name}: {exc}")
 
 
 def get(name: str) -> Type[BasePlatform]:

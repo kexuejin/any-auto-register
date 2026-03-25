@@ -19,12 +19,14 @@ MAILBOX_DRIVER_TEMPLATES = [
         "default_auth_mode": "username_password",
         "auth_modes": [
             {"value": "endpoint_only", "label": "仅接口地址"},
+            {"value": "api_key", "label": "API Key"},
             {"value": "username_password", "label": "用户名密码"},
             {"value": "session_token", "label": "Session Token"},
             {"value": "hybrid", "label": "用户名密码 + Session Token"},
         ],
         "fields": [
             {"key": "moemail_api_url", "label": "API URL", "placeholder": "https://sall.cc", "category": "connection"},
+            {"key": "moemail_api_key", "label": "API Key（可选）", "secret": True, "category": "auth"},
             {"key": "moemail_username", "label": "用户名（手动注册）", "placeholder": "", "category": "auth"},
             {"key": "moemail_password", "label": "密码（手动注册）", "secret": True, "category": "auth"},
             {"key": "moemail_session_token", "label": "Session Token（可选）", "secret": True, "category": "auth"},

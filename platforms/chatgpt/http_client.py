@@ -1,8 +1,62 @@
 """OpenAI 专用 HTTP 客户端"""
+from typing import Any, Dict, Optional, Tuple
+import random
+
+from curl_cffi.const import CurlIpResolve, CurlOpt
+from curl_cffi.requests import Session
+
 from core.http_client import HTTPClient, HTTPClientError, RequestConfig
 from .constants import ERROR_MESSAGES
 import logging
 logger = logging.getLogger(__name__)
+
+
+_BROWSER_PROFILES = [
+    "chrome120", "chrome124", "chrome131", "safari17_0",
+]
+
+_ACCEPT_LANGUAGES = [
+    "en-US,en;q=0.9",
+    "en-US,en;q=0.9,zh-CN;q=0.8",
+    "en-US,en;q=0.8",
+    "en-US,en;q=0.9,es;q=0.8",
+]
+
+
+def _user_agent_for_profile(profile: str) -> str:
+    profile = (profile or "").lower()
+    if "safari" in profile:
+        return "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+    if "chrome131" in profile:
+        return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    if "chrome124" in profile:
+        return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+
+def _build_browser_headers(profile: str) -> Dict[str, str]:
+    lang = random.choice(_ACCEPT_LANGUAGES)
+    ch_ua = "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\", \"Not-A.Brand\";v=\"99\""
+    if "safari" in (profile or ""):
+        ch_ua = "\"\""
+    return {
+        "User-Agent": _user_agent_for_profile(profile),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,"
+                  "*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": lang,
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "DNT": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Ch-Ua": ch_ua,
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": "\"macOS\"" if "safari" in (profile or "") else "\"Windows\"",
+        "Priority": "u=0, i",
+    }
+
 
 class OpenAIHTTPClient(HTTPClient):
     """
@@ -29,7 +83,13 @@ class OpenAIHTTPClient(HTTPClient):
             self.config.timeout = 30
             self.config.max_retries = 3
 
-        # 默认请求头
+        # 选择浏览器指纹
+        self.impersonate_profile = self.config.impersonate
+        if not self.impersonate_profile or self.impersonate_profile == "chrome":
+            self.impersonate_profile = random.choice(_BROWSER_PROFILES)
+            self.config.impersonate = self.impersonate_profile
+
+        # 默认请求头（用于 API 请求）
         self.default_headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                          "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -41,6 +101,58 @@ class OpenAIHTTPClient(HTTPClient):
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-site",
         }
+        # 会话级浏览器指纹头（用于 OAuth / 页面请求）
+        self.browser_headers = _build_browser_headers(self.impersonate_profile)
+
+    def _build_session(self) -> Session:
+        session = Session(
+            proxies=self.proxies,
+            impersonate=self.impersonate_profile,
+            verify=self.config.verify_ssl,
+            timeout=self.config.timeout,
+            curl_options={CurlOpt.IPRESOLVE: CurlIpResolve.V4},
+        )
+        session.headers.update(self.browser_headers)
+        return session
+
+    @property
+    def session(self) -> Session:
+        if self._session is None:
+            self._session = self._build_session()
+        return self._session
+
+    def _cookie_items(self) -> list[tuple[str, str]]:
+        pairs: list[tuple[str, str]] = []
+        try:
+            for name in self.session.cookies.keys():
+                key = str(name or "").strip()
+                value = str(self.session.cookies.get(name) or "").strip()
+                if key and value:
+                    pairs.append((key, value))
+        except Exception:
+            return []
+        return pairs
+
+    def rotate_fingerprint(self, clear_cookies: bool = False) -> str:
+        cookies = [] if clear_cookies else self._cookie_items()
+        old = self._session
+        choices = [p for p in _BROWSER_PROFILES if p != self.impersonate_profile]
+        self.impersonate_profile = random.choice(choices or _BROWSER_PROFILES)
+        self.config.impersonate = self.impersonate_profile
+        self.browser_headers = _build_browser_headers(self.impersonate_profile)
+        self._session = self._build_session()
+        if cookies:
+            for key, value in cookies:
+                try:
+                    self._session.cookies.set(key, value)
+                except Exception:
+                    pass
+        if old:
+            try:
+                old.close()
+            except Exception:
+                pass
+        return self.impersonate_profile
 
     def check_ip_location(self) -> Tuple[bool, Optional[str]]:
         """

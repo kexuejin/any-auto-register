@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from api.account_checks import router as account_checks_router
 from api.accounts import router as accounts_router
 from api.actions import router as actions_router
+from api.codexmanager import router as codexmanager_router
 from api.config import router as config_router
 from api.health import router as health_router
 from api.platform_capabilities import router as platform_capabilities_router
@@ -20,8 +21,11 @@ from api.system import router as system_router
 from api.task_commands import router as task_commands_router
 from api.task_logs import router as task_logs_router
 from api.tasks import router as tasks_router
+from core.codexmanager_maintainer import CodexManagerMaintainer
 from core.db import init_db
 from core.registry import load_all
+
+codexmanager_maintainer = CodexManagerMaintainer()
 
 
 @asynccontextmanager
@@ -33,6 +37,7 @@ async def lifespan(app: FastAPI):
     print(f"[OK] 已加载平台: {[p['name'] for p in list_platforms()]}")
     from core.scheduler import scheduler
     scheduler.start()
+    codexmanager_maintainer.start()
     from services.task_runtime import task_runtime
     task_runtime.start()
     from services.solver_manager import start_async
@@ -40,6 +45,7 @@ async def lifespan(app: FastAPI):
     yield
     from core.scheduler import scheduler as _scheduler
     _scheduler.stop()
+    codexmanager_maintainer.stop()
     from services.task_runtime import task_runtime as _task_runtime
     _task_runtime.stop()
     from services.solver_manager import stop
@@ -58,6 +64,7 @@ app.add_middleware(
 app.include_router(accounts_router, prefix="/api")
 app.include_router(account_checks_router, prefix="/api")
 app.include_router(actions_router, prefix="/api")
+app.include_router(codexmanager_router, prefix="/api")
 app.include_router(config_router, prefix="/api")
 app.include_router(health_router, prefix="/api")
 app.include_router(platforms_router, prefix="/api")

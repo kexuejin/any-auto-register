@@ -27,9 +27,13 @@ function startBackend() {
   const backendPath = getBackendPath()
   console.log('[backend] 启动:', backendPath)
 
+  // Persist backend data (SQLite DB, configs) in a stable per-user directory.
+  // Otherwise data would be written into the app resources folder and be lost on update/reinstall.
+  const dataDir = app.getPath('userData')
+
   backendProcess = spawn(backendPath, [], {
     cwd: path.join(process.resourcesPath, 'backend', 'backend'),
-    env: { ...process.env, PORT: String(PORT) },
+    env: { ...process.env, PORT: String(PORT), AAR_DATA_DIR: dataDir },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
 

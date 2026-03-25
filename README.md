@@ -126,6 +126,26 @@ npm run dev
 
 目前数据库模型仍是 `provider_type + provider_key` 唯一，也就是每种 provider 保留一条配置；这套结构适合持续扩展新的 mailbox/captcha provider。
 
+### ChatGPT 新增邮箱提供者（protocol）
+
+`mail_provider` 新增可选值：
+
+- `domain_imap`：域名 IMAP catch-all
+- `chuleicn`：Chuleicn 临时邮箱（纯 API）
+
+相关配置键：
+
+- `domain_imap_host`
+- `domain_imap_port`
+- `domain_imap_user`
+- `domain_imap_pass`
+- `domain_imap_use_tls`
+- `domain_imap_proxy`
+- `domain_catchall_domain`
+- `chuleicn_api_url`
+- `chuleicn_password`
+- `chuleicn_domain`
+
 ### MoeMail（推荐）
 
 基于开源项目 [cloudflare_temp_email](https://github.com/dreamhunter2333/cloudflare_temp_email) 自建的临时邮箱服务，无需配置任何参数，系统自动注册临时账号并生成邮箱。

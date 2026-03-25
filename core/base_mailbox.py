@@ -105,6 +105,8 @@ def _create_freemail(extra: dict, proxy: str | None) -> 'BaseMailbox':
 def _create_moemail(extra: dict, proxy: str | None) -> 'BaseMailbox':
     return MoeMailMailbox(
         api_url=extra.get("moemail_api_url"),
+        # Backward compat: some MoeMail deployments offer an API key auth via X-API-Key.
+        api_key=extra.get("moemail_api_key", ""),
         username=extra.get("moemail_username", ""),
         password=extra.get("moemail_password", ""),
         session_token=extra.get("moemail_session_token", ""),
@@ -751,12 +753,14 @@ class MoeMailMailbox(BaseMailbox):
     def __init__(
         self,
         api_url: str = "https://sall.cc",
+        api_key: str = "",
         username: str = "",
         password: str = "",
         session_token: str = "",
         proxy: str = None,
     ):
         self.api = _normalize_api_base_url(api_url, default="https://sall.cc", label="MoeMail API URL")
+        self._api_key = str(api_key or "").strip()
         self.proxy = {"http": proxy, "https": proxy} if proxy else None
         self._configured_username = str(username or "").strip()
         self._configured_password = str(password or "")
@@ -775,6 +779,8 @@ class MoeMailMailbox(BaseMailbox):
         s.verify = False
         ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
         s.headers.update({"user-agent": ua, "origin": self.api, "referer": f"{self.api}/zh-CN/login"})
+        if self._api_key:
+            s.headers.update({"X-API-Key": self._api_key})
         return s
 
     def _extract_session_token(self, session) -> str:
@@ -836,6 +842,11 @@ class MoeMailMailbox(BaseMailbox):
         )
 
     def _ensure_session(self) -> str:
+        if self._api_key:
+            # API-key mode: no need to manage next-auth cookies; API key is enough for /api/* endpoints.
+            if self._session is None:
+                self._session = self._new_session()
+            return "api_key"
         if self._session_token and self._session is not None:
             return self._session_token
         if self._configured_session_token or self._configured_username:

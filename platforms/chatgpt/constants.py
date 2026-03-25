@@ -62,6 +62,8 @@ OPENAI_API_ENDPOINTS = {
     "signup": "https://auth.openai.com/api/accounts/authorize/continue",
     "register": "https://auth.openai.com/api/accounts/user/register",
     "send_otp": "https://auth.openai.com/api/accounts/email-otp/send",
+    "email_otp_resend": "https://auth.openai.com/api/accounts/email-otp/resend",
+    "passwordless_send_otp": "https://auth.openai.com/api/accounts/passwordless/send-otp",
     "validate_otp": "https://auth.openai.com/api/accounts/email-otp/validate",
     "create_account": "https://auth.openai.com/api/accounts/create_account",
     "select_workspace": "https://auth.openai.com/api/accounts/workspace/select",
@@ -122,6 +124,7 @@ EMAIL_SERVICE_DEFAULTS = {
 # 验证码相关
 OTP_CODE_PATTERN = r"(?<!\d)(\d{6})(?!\d)"
 OTP_MAX_ATTEMPTS = 40  # 最大轮询次数
+OTP_RESEND_SCHEDULE = (14, 20, 28)
 
 # 验证码提取正则（增强版）
 # 简单匹配：任意 6 位数字

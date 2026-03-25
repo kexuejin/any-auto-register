@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { getConfig, getConfigOptions, getPlatforms } from '@/lib/app-data'
 import type { ConfigOptionsResponse } from '@/lib/config-options'
 import { getCaptchaStrategyLabel, listProviderFieldKeys } from '@/lib/config-options'
-import { apiDownload, apiFetch, triggerBrowserDownload } from '@/lib/utils'
+import { apiDownload, apiFetch, formatDateTime, triggerBrowserDownload } from '@/lib/utils'
 import { buildExecutorOptions, buildRegistrationOptions, hasReusableOAuthBrowser, pickOAuthExecutor } from '@/lib/registration'
 import { TaskLogPanel } from '@/components/tasks/TaskLogPanel'
 import { Badge } from '@/components/ui/badge'
@@ -234,6 +234,10 @@ function RegisterModal({
         chrome_cdp_url: cfg.chrome_cdp_url,
         mail_provider: cfg.mail_provider || 'moemail',
       }
+      // Default behavior: ChatGPT registrations auto-export to CodexManager.
+      if (platform === 'chatgpt') {
+        extra.auto_upload_target = 'codexmanager'
+      }
       listProviderFieldKeys([
         ...(configOptions.mailbox_providers || []),
         ...(configOptions.captcha_providers || []),
@@ -255,7 +259,7 @@ function RegisterModal({
           extra,
         }),
       })
-      setTaskId(res.task_id)
+      setTaskId(res.task_id || res.id)
     } finally { setStarting(false) }
   }
 
@@ -762,15 +766,16 @@ function ActionMenu({
                     setOpen(false)
                     setRunning(a.id)
                     setActionTaskStatus(null)
-                    apiFetch(`/actions/${acc.platform}/${acc.id}/${a.id}`, { method: 'POST', body: JSON.stringify({ params: {} }) })
+                  apiFetch(`/actions/${acc.platform}/${acc.id}/${a.id}`, { method: 'POST', body: JSON.stringify({ params: {} }) })
                       .then(task => {
-                        if (!task?.task_id) {
+                        const taskId = task?.task_id || task?.id
+                        if (!taskId) {
                           setRunning(null)
                           setToast({ type: 'error', text: '任务创建失败' })
                           return
                         }
                         setActionTask({
-                          taskId: task.task_id,
+                          taskId,
                           title: `${acc.email} · ${a.label}`,
                         })
                       })
@@ -1412,7 +1417,7 @@ export default function Accounts() {
                   ) : <span className="text-[var(--text-muted)] text-xs">-</span>}
                 </td>
                 <td className="px-4 py-2.5 text-[var(--text-muted)] text-xs whitespace-nowrap align-top">
-                  {acc.created_at ? new Date(acc.created_at).toLocaleString('zh-CN', { hour12: false }) : '-'}
+                  {formatDateTime(acc.created_at)}
                 </td>
                 <td className="px-4 py-2.5 align-top" onClick={e => e.stopPropagation()}>
                   <ActionMenu

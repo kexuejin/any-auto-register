@@ -154,6 +154,7 @@ class ChatGPTPlatform(BasePlatform):
                  {"key": "api_url", "label": "TM API URL", "type": "text"},
                  {"key": "api_key", "label": "TM API Key", "type": "text"},
              ]},
+            {"id": "upload_codexmanager", "label": "上传 CodexManager", "params": []},
         ]
 
     def get_desktop_state(self) -> dict:
@@ -286,6 +287,11 @@ class ChatGPTPlatform(BasePlatform):
             from platforms.chatgpt.cpa_upload import upload_to_team_manager
             ok, msg = upload_to_team_manager(a, api_url=params.get("api_url"),
                                              api_key=params.get("api_key"))
+            return {"ok": ok, "data": msg}
+
+        elif action_id == "upload_codexmanager":
+            from platforms.chatgpt.codexmanager_upload import upload_to_codexmanager
+            ok, msg = upload_to_codexmanager(account)
             return {"ok": ok, "data": msg}
 
         raise NotImplementedError(f"未知操作: {action_id}")

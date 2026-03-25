@@ -4,12 +4,66 @@ from typing import Optional
 from sqlalchemy import UniqueConstraint, inspect
 from sqlmodel import Field, SQLModel, create_engine, Session, select
 import json
+import os
+from pathlib import Path
+import sys
 
 
 def _utcnow():
     return datetime.now(timezone.utc)
 
-DATABASE_URL = "sqlite:///account_manager.db"
+def _default_data_dir() -> Path:
+    # Allow desktop wrapper (Electron) / advanced users to control the persistence location.
+    explicit = os.environ.get("AAR_DATA_DIR") or os.environ.get("ANY_AUTO_REGISTER_DATA_DIR") or ""
+    if explicit.strip():
+        return Path(os.path.expanduser(explicit.strip()))
+
+    # Tests should not pollute the real desktop DB.
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return Path.cwd() / ".tmp" / "pytest-data"
+
+    system = os.name  # 'posix' / 'nt'
+    home = Path.home()
+    if system == "nt":
+        base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or str(home / "AppData" / "Local")
+        return Path(base) / "any-auto-register"
+
+    # macOS
+    if sys.platform == "darwin":
+        return home / "Library" / "Application Support" / "any-auto-register"
+
+    # Linux / other unix
+    xdg = os.environ.get("XDG_DATA_HOME") or ""
+    if xdg.strip():
+        return Path(os.path.expanduser(xdg.strip())) / "any-auto-register"
+    return home / ".local" / "share" / "any-auto-register"
+
+
+def _resolve_db_url() -> str:
+    explicit_path = (os.environ.get("AAR_DB_PATH") or os.environ.get("ANY_AUTO_REGISTER_DB_PATH") or "").strip()
+    if explicit_path:
+        db_path = Path(os.path.expanduser(explicit_path))
+    else:
+        data_dir = _default_data_dir()
+        data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = data_dir / "account_manager.db"
+
+    # Migrate legacy relative DB if present (e.g. older builds wrote next to the backend binary).
+    try:
+        legacy = Path.cwd() / "account_manager.db"
+        if legacy.exists() and not db_path.exists() and legacy.resolve() != db_path.resolve():
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            legacy.replace(db_path)
+    except Exception:
+        # Best-effort only.
+        pass
+
+    # SQLAlchemy absolute path requires 4 slashes on POSIX: sqlite:////abs/path.db
+    return f"sqlite:///{db_path}"
+
+
+# NOTE: engine is a singleton; its URL is resolved once at import time.
+DATABASE_URL = _resolve_db_url()
 engine = create_engine(DATABASE_URL)
 
 

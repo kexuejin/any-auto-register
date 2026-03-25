@@ -25,6 +25,7 @@ account.txt
 # 前端
 frontend/node_modules/
 frontend/dist/
+frontend/.npm-cache/
 
 # Electron
 electron/node_modules/
@@ -50,4 +51,7 @@ data/
 .idea/
 .vscode/
 *.swp
+
+# Git worktrees
+.worktrees/
 .ace-tool/

@@ -56,8 +56,11 @@ export function TaskLogPanel({
 
     const es = new EventSource(`${API_BASE}/tasks/${taskId}/logs/stream`)
     eventSourceRef.current = es
+    // Only treat SSE as healthy after receiving at least one `data:` payload.
+    // Some environments establish a connection but won't deliver message events;
+    // in that case we want the polling fallback to stay active.
     es.onopen = () => {
-      sseHealthyRef.current = true
+      // noop
     }
     es.onmessage = (e) => {
       sseHealthyRef.current = true

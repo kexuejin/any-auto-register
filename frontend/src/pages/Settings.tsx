@@ -214,16 +214,43 @@ const TABS: { id: string; label: string; icon: any; sections?: any[] }[] = [
         { key: 'team_manager_url', label: 'API URL', placeholder: 'https://your-tm.example.com' },
         { key: 'team_manager_key', label: 'API Key', secret: true },
       ],
+    }, {
+      section: 'CodexManager',
+      desc: '连接 CodexManager 桌面端 RPC；可选开启自动补号（仅 ChatGPT）。',
+      items: [
+        { key: 'codexmanager_rpc_url', label: 'RPC URL', placeholder: 'http://127.0.0.1:48760/rpc' },
+        { key: 'codexmanager_rpc_token', label: 'RPC Token', secret: true },
+        { key: 'codexmanager_rpc_token_file', label: 'RPC Token File', placeholder: '~/Library/Application Support/com.codexmanager.desktop/codexmanager.rpc-token' },
+        { key: 'codexmanager_maintain_enabled', label: '自动补号开关', type: 'toggle', defaultBool: true, help: '启用后将定期检查可用账号数量，不足时自动触发注册补号。' },
+        { key: 'codexmanager_maintain_cleanup_enabled', label: '清理封禁账号', type: 'toggle', defaultBool: false, help: '默认关闭。开启后会尝试删除封禁/禁用账号（为避免误删，请谨慎开启）。' },
+        { key: 'codexmanager_maintain_interval_secs', label: '补号检查间隔(秒)', type: 'number', min: 60, step: 60, placeholder: '7200', help: '默认 7200（2 小时）。' },
+        { key: 'codexmanager_min_available', label: '最低可用账号数', type: 'number', min: 1, step: 1, placeholder: '50', help: '低于该值会触发自动补号。' },
+        { key: 'codexmanager_fill_count', label: '每次补号数量(0=补到阈值)', type: 'number', min: 0, step: 1, placeholder: '0', help: '为 0 时补到阈值；否则每次固定补号数量。' },
+        { key: 'codexmanager_banned_filter', label: '封禁过滤值', placeholder: 'banned' },
+        { key: 'codexmanager_available_filter', label: '可用过滤值(逗号分隔)', placeholder: 'active' },
+      ],
     }],
   },
 ]
 
 function Field({ field, form, setForm, showSecret, setShowSecret }: any) {
-  const { key, label, placeholder, secret } = field
+  const { key, label, placeholder, secret, type, min, step, help } = field
   const options = field.options || SELECT_FIELDS[key]
+  const isToggle = type === 'toggle'
+  const isNumber = type === 'number'
+  const toggleDefault = field.defaultBool ?? false
+  const normalizeBool = (v: any, defaultValue = false) => {
+    if (v === true || v === 'true' || v === 1 || v === '1') return true
+    if (v === false || v === 'false' || v === 0 || v === '0') return false
+    return defaultValue
+  }
   return (
-    <div className="grid grid-cols-3 gap-4 items-center py-3 border-b border-white/5 last:border-0">
-      <label className="text-sm text-[var(--text-secondary)] font-medium">{label}</label>
+    <div className="grid grid-cols-3 gap-4 items-start py-3 border-b border-white/5 last:border-0">
+      {isToggle ? (
+        <div className="text-sm text-[var(--text-secondary)] font-medium pt-2">{label}</div>
+      ) : (
+        <label className="text-sm text-[var(--text-secondary)] font-medium pt-2">{label}</label>
+      )}
       <div className="col-span-2 relative">
         {options ? (
           <select
@@ -233,13 +260,49 @@ function Field({ field, form, setForm, showSecret, setShowSecret }: any) {
           >
             {options.map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
+        ) : isToggle ? (
+          <button
+            type="button"
+            role="switch"
+            aria-label={label}
+            aria-checked={normalizeBool(form[key], toggleDefault)}
+            onClick={() => {
+              const cur = normalizeBool(form[key], toggleDefault)
+              setForm((f: any) => ({ ...f, [key]: cur ? 'false' : 'true' }))
+            }}
+            className={cn(
+              'w-full h-10 rounded-lg border px-3 flex items-center justify-between transition-colors',
+              normalizeBool(form[key], toggleDefault)
+                ? 'bg-emerald-500/10 border-emerald-500/40'
+                : 'bg-[var(--bg-base)] border-[var(--border)]'
+            )}
+          >
+            <span className="text-sm text-[var(--text-secondary)]">
+              {normalizeBool(form[key], toggleDefault) ? '启用' : '禁用'}
+            </span>
+            <span
+              className={cn(
+                'relative w-10 h-6 rounded-full transition-colors',
+                normalizeBool(form[key], toggleDefault) ? 'bg-emerald-500' : 'bg-white/15'
+              )}
+            >
+              <span
+                className={cn(
+                  'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform',
+                  normalizeBool(form[key], toggleDefault) ? 'translate-x-4' : 'translate-x-0'
+                )}
+              />
+            </span>
+          </button>
         ) : (
           <>
             <input
-              type={secret && !showSecret[key] ? 'password' : 'text'}
+              type={secret && !showSecret[key] ? 'password' : (isNumber ? 'number' : 'text')}
               value={form[key] || ''}
               onChange={e => setForm((f: any) => ({ ...f, [key]: e.target.value }))}
               placeholder={placeholder}
+              min={isNumber ? min : undefined}
+              step={isNumber ? step : undefined}
               className="control-surface pr-10"
             />
             {secret && (
@@ -252,6 +315,7 @@ function Field({ field, form, setForm, showSecret, setShowSecret }: any) {
             )}
           </>
         )}
+        {help ? <div className="mt-1 text-xs text-[var(--text-muted)]">{help}</div> : null}
       </div>
     </div>
   )
@@ -302,7 +366,7 @@ function ProviderDetailModal({
 }: any) {
   return (
     <div className="dialog-backdrop" onClick={onClose}>
-      <div className="dialog-panel dialog-panel-md overflow-y-auto" style={{ maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+      <div className="dialog-panel dialog-panel-md flex flex-col" style={{ maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">{title}</h2>
@@ -310,7 +374,7 @@ function ProviderDetailModal({
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"><X className="h-4 w-4" /></button>
         </div>
-        <div className="px-6 py-4 space-y-3">
+        <div className="px-6 py-4 space-y-3 flex-1 overflow-y-auto">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full border border-[var(--border)] bg-[var(--bg-hover)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]">
               {item.auth_modes.find((mode: any) => mode.value === item.auth_mode)?.label || item.auth_mode || '未设置认证方式'}
@@ -574,6 +638,9 @@ export default function Settings() {
   const [providerDeleting, setProviderDeleting] = useState<Record<string, boolean>>({})
   const [providerCreating, setProviderCreating] = useState<Record<string, boolean>>({})
   const [solverRunning, setSolverRunning] = useState<boolean | null>(null)
+  const [maintainRunning, setMaintainRunning] = useState(false)
+  const [maintainNotice, setMaintainNotice] = useState<string>('')
+  const [maintainError, setMaintainError] = useState<string>('')
 
   const loadConfigData = async () => {
     const [cfg, options] = await Promise.all([
@@ -619,6 +686,30 @@ export default function Settings() {
       invalidateConfigCache()
       setSaved(true); setTimeout(() => setSaved(false), 2000)
     } finally { setSaving(false) }
+  }
+
+  const runCodexManagerMaintain = async () => {
+    if (maintainRunning) {
+      setMaintainError('执行中/忙')
+      return
+    }
+    setMaintainRunning(true)
+    setMaintainNotice('')
+    setMaintainError('')
+    try {
+      const r = await apiFetch('/codexmanager/maintain/run', { method: 'POST' })
+      if (!r?.ok) {
+        setMaintainError(r?.error === 'busy' ? '执行中/忙' : (r?.error || '操作失败'))
+        return
+      }
+      const rep = r.report || {}
+      const cleanupText = rep.cleanup ? `清理封禁 ${rep.deleted || 0}` : '清理封禁 已关闭'
+      setMaintainNotice(`${cleanupText}，可用 ${rep.available || 0}，补号 ${rep.fill || 0}`)
+    } catch (e: any) {
+      setMaintainError(e?.message || '请求失败')
+    } finally {
+      setMaintainRunning(false)
+    }
   }
 
   const tab = TABS.find(t => t.id === activeTab) ?? TABS[0]
@@ -1177,9 +1268,27 @@ export default function Settings() {
               )}
               {activeTab !== 'mailbox' && activeTab !== 'captcha' && sections.map(({ section, desc, items }) => (
                 <div key={section} className="rounded-[24px] border border-[var(--border)] bg-[var(--bg-pane)]/56 p-5">
-                  <div className="mb-4">
-                    <h3 className="text-sm font-semibold text-[var(--text-primary)]">{section}</h3>
-                    {desc && <p className="text-xs text-[var(--text-muted)] mt-0.5">{desc}</p>}
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-[var(--text-primary)]">{section}</h3>
+                      {desc && <p className="text-xs text-[var(--text-muted)] mt-0.5">{desc}</p>}
+                      {activeTab === 'chatgpt' && section === 'CodexManager' && maintainNotice ? (
+                        <p className="text-xs text-emerald-300 mt-1">{maintainNotice}</p>
+                      ) : null}
+                      {activeTab === 'chatgpt' && section === 'CodexManager' && maintainError ? (
+                        <p className="text-xs text-red-300 mt-1">{maintainError}</p>
+                      ) : null}
+                    </div>
+                    {activeTab === 'chatgpt' && section === 'CodexManager' ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={runCodexManagerMaintain}
+                        disabled={maintainRunning}
+                      >
+                        {maintainRunning ? '检查中...' : '立即检查'}
+                      </Button>
+                    ) : null}
                   </div>
                   {items.map((field: any) => (
                     <Field key={field.key} field={field} form={form} setForm={setForm}

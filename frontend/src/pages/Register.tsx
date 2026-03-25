@@ -69,7 +69,7 @@ export default function Register() {
 
   const applyTerminalTask = useCallback((latest: any, statusHint?: string) => {
     setTask(latest)
-    const taskKey = String(latest?.task_id || latest?.id || task?.task_id || '')
+    const taskKey = String(latest?.id || task?.id || '')
     if (!taskKey) return
     handledTerminalTaskIdsRef.current.add(taskKey)
     const resolvedStatus = statusHint || latest?.status || ''
@@ -82,7 +82,7 @@ export default function Register() {
       openedCashierTaskIdsRef.current.add(taskKey)
       latest.cashier_urls.forEach((url: string) => window.open(url, '_blank'))
     }
-  }, [task?.task_id])
+  }, [task?.id])
 
   useEffect(() => {
     Promise.all([
@@ -200,6 +200,10 @@ export default function Register() {
       chrome_user_data_dir: form.chrome_user_data_dir || undefined,
       chrome_cdp_url: form.chrome_cdp_url || undefined,
     }
+    // Default behavior: ChatGPT registrations auto-export to CodexManager.
+    if (form.platform === 'chatgpt') {
+      extra.auto_upload_target = 'codexmanager'
+    }
     allProviderFieldKeys.forEach(fieldKey => {
       if (form[fieldKey] !== undefined) {
         extra[fieldKey] = form[fieldKey]
@@ -223,21 +227,21 @@ export default function Register() {
   }
 
   const handleTaskDone = useCallback(async (status: string) => {
-    if (!task?.task_id) return
-    if (handledTerminalTaskIdsRef.current.has(String(task.task_id))) {
+    if (!task?.id) return
+    if (handledTerminalTaskIdsRef.current.has(String(task.id))) {
       setPolling(false)
       return
     }
     try {
-      const latest = await apiFetch(`/tasks/${task.task_id}`)
+      const latest = await apiFetch(`/tasks/${task.id}`)
       applyTerminalTask(latest, status)
     } finally {
       setPolling(false)
     }
-  }, [applyTerminalTask, task?.task_id])
+  }, [applyTerminalTask, task?.id])
 
   useEffect(() => {
-    if (!task?.task_id || isTerminalTaskStatus(task.status)) {
+    if (!task?.id || isTerminalTaskStatus(task.status)) {
       if (task?.status) {
         setPolling(false)
       }
@@ -246,7 +250,7 @@ export default function Register() {
     const interval = window.setInterval(async () => {
       if (document.visibilityState !== 'visible') return
       try {
-        const latest = await apiFetch(`/tasks/${task.task_id}`)
+        const latest = await apiFetch(`/tasks/${task.id}`)
         setTask(latest)
         if (isTerminalTaskStatus(latest.status)) {
           window.clearInterval(interval)
@@ -258,7 +262,7 @@ export default function Register() {
       }
     }, 5000)
     return () => window.clearInterval(interval)
-  }, [applyTerminalTask, task?.task_id, task?.status])
+  }, [applyTerminalTask, task?.id, task?.status])
 
   const Input = ({ label, k, type = 'text', placeholder = '' }: any) => (
     <div>

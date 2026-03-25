@@ -196,6 +196,18 @@ def create_task(
 
 def create_register_task(payload: dict[str, Any]) -> dict[str, Any]:
     count = max(int(payload.get("count", 1) or 1), 1)
+    # Backward/UX default: ChatGPT registrations auto-export to CodexManager unless explicitly specified.
+    try:
+        if str(payload.get("platform", "") or "") == "chatgpt":
+            extra = payload.get("extra")
+            if not isinstance(extra, dict):
+                extra = {}
+                payload["extra"] = extra
+            if not str(extra.get("auto_upload_target", "") or "").strip():
+                extra["auto_upload_target"] = "codexmanager"
+    except Exception:
+        # Don't let bad payload shape break task creation.
+        pass
     return create_task(
         task_type=TASK_TYPE_REGISTER,
         platform=str(payload.get("platform", "")),
@@ -479,6 +491,75 @@ def _auto_upload_cpa(task_logger: TaskLogger, account) -> None:
         task_logger.log(f"  [CPA] 自动上传异常: {exc}", level="warning")
 
 
+def _has_codexmanager_token() -> bool:
+    try:
+        from platforms.chatgpt.codexmanager_upload import _resolve_rpc_token
+
+        return bool(_resolve_rpc_token())
+    except Exception:
+        return False
+
+
+def _pick_auto_upload_target(value: str, extra: dict) -> str:
+    allowed = {"cpa", "team_manager", "codexmanager", "none"}
+    target = (value or "").strip()
+    if target in allowed:
+        return target
+    extra = extra or {}
+    if extra.get("cpa_api_url"):
+        return "cpa"
+    if extra.get("team_manager_url") and extra.get("team_manager_key"):
+        return "team_manager"
+    if extra.get("codexmanager_rpc_url") and _has_codexmanager_token():
+        return "codexmanager"
+    if _has_codexmanager_token():
+        return "codexmanager"
+    return "none"
+
+
+def _auto_upload_target(task_logger: TaskLogger, account, payload_extra: dict) -> None:
+    """Upload the newly registered account to the configured target (ChatGPT only)."""
+    if getattr(account, "platform", "") != "chatgpt":
+        return
+    extra = payload_extra or {}
+    resolved = _pick_auto_upload_target(str(extra.get("auto_upload_target", "") or ""), extra)
+    if resolved == "none":
+        return
+
+    try:
+        if resolved == "cpa":
+            _auto_upload_cpa(task_logger, account)
+            return
+
+        if resolved == "team_manager":
+            from platforms.chatgpt.cpa_upload import upload_to_team_manager
+
+            class _AccountProxy:
+                pass
+
+            target = _AccountProxy()
+            acc_extra = account.extra or {}
+            target.email = account.email
+            target.access_token = acc_extra.get("access_token") or account.token
+            target.session_token = acc_extra.get("session_token", "")
+            target.refresh_token = acc_extra.get("refresh_token", "")
+            target.client_id = acc_extra.get("client_id", "app_EMoamEEZ73f0CkXaXp7hrann")
+
+            ok, msg = upload_to_team_manager(target)
+            task_logger.log(f"  [TM] {'✓ ' + msg if ok else '✗ ' + msg}")
+            return
+
+        if resolved == "codexmanager":
+            from platforms.chatgpt.codexmanager_upload import upload_to_codexmanager
+
+            ok, msg = upload_to_codexmanager(account)
+            task_logger.log(f"  [CodexManager] {'✓ ' + msg if ok else '✗ ' + msg}")
+            return
+    except Exception as exc:
+        label = {"cpa": "CPA", "team_manager": "TM", "codexmanager": "CodexManager"}.get(resolved, "Upload")
+        task_logger.log(f"  [{label}] 自动上传异常: {exc}", level="warning")
+
+
 def _build_platform_instance(platform_name: str, payload: dict[str, Any], logger: TaskLogger, resolved_proxy: str | None = None):
     from core.base_identity import normalize_identity_provider
     from core.base_mailbox import create_mailbox
@@ -605,7 +686,7 @@ def _execute_register_task(payload: dict[str, Any], logger: TaskLogger) -> None:
             logger.record_success()
             logger.log(f"✓ 注册成功: {account.email}")
             _save_task_log(platform_name, account.email, "success")
-            _auto_upload_cpa(logger, account)
+            _auto_upload_target(logger, account, dict(payload.get("extra") or {}))
             cashier_url = (account.extra or {}).get("cashier_url", "")
             if cashier_url:
                 logger.log(f"  [升级链接] {cashier_url}")
