@@ -63,16 +63,31 @@ fn find_backend_sidecar(resource_dir: &std::path::Path) -> std::io::Result<std::
 }
 
 fn start_backend(app: &tauri::AppHandle) -> std::io::Result<Child> {
-  let resource_dir = app
-    .path()
-    .resource_dir()
-    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
-
-  let backend_path = find_backend_sidecar(&resource_dir)?;
-  let backend_dir = backend_path
+  // When bundled, Tauri may place external binaries next to the app executable
+  // (e.g. `Contents/MacOS/backend` on macOS). Prefer that location for robustness.
+  let current_exe = std::env::current_exe()?;
+  let exe_dir = current_exe
     .parent()
-    .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "invalid backend path"))?
+    .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "invalid current exe path"))?
     .to_path_buf();
+
+  let backend_name = if cfg!(windows) { "backend.exe" } else { "backend" };
+  let direct_backend = exe_dir.join(backend_name);
+
+  let (backend_path, backend_dir) = if direct_backend.exists() {
+    (direct_backend, exe_dir)
+  } else {
+    let resource_dir = app
+      .path()
+      .resource_dir()
+      .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    let backend_path = find_backend_sidecar(&resource_dir)?;
+    let backend_dir = backend_path
+      .parent()
+      .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "invalid backend path"))?
+      .to_path_buf();
+    (backend_path, backend_dir)
+  };
 
   let data_dir = app
     .path()
