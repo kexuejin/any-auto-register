@@ -8,7 +8,10 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13
+    # macos-13 is retired; use an Intel runner label.
+    runs-on: macos-15-intel
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/src-tauri/target
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,4 +42,3 @@ jobs:
           name: any-auto-register-macos-x86_64
           path: |
             src-tauri/target/release/bundle/macos/*.app
-

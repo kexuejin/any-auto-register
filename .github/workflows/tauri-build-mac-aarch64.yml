@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: macos-14
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/src-tauri/target
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,4 +41,3 @@ jobs:
           name: any-auto-register-macos-aarch64
           path: |
             src-tauri/target/release/bundle/macos/*.app
-
