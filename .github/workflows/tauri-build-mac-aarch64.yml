@@ -1,0 +1,42 @@
+name: Tauri Build (macOS aarch64)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version 2.10.1 --locked
+
+      - name: Build Backend Sidecar (PyInstaller)
+        run: ./scripts/build-backend-tauri-mac.sh
+
+      - name: Build Tauri App (.app)
+        working-directory: src-tauri
+        run: cargo tauri build -b app --target aarch64-apple-darwin --no-sign
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: any-auto-register-macos-aarch64
+          path: |
+            src-tauri/target/release/bundle/macos/*.app
+
